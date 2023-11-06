@@ -81,8 +81,8 @@ int main(int argc, char *argv[]) {
 #pragma omp parallel for
   for (int i = 1; i < argc; i++) {
     const char *input_image_path = argv[i];
-    VipsImage *input_image = input_images[i - 1];
-    VipsImage *resized_image = resized_images[i - 1];
+    const VipsImage *input_image = input_images[i - 1];
+    const VipsImage *resized_image = resized_images[i - 1];
     fprintf(stderr, "Loading image %s\n", input_image_path);
     input_image = vips_image_new_from_file(input_image_path, NULL);
 

@@ -1,3 +1,4 @@
+#include <omp.h>
 #include <stdio.h>
 #include <vips/vips.h>
 
@@ -19,8 +20,10 @@ VipsImage *scale_image(int width, int height, VipsImage *img) {
   return new_image;
 }
 
-void export_image(VipsImage *img, char *filepath) {
-  char avif_options[] = "[Q=66,subsample_mode=VIPS_FOREIGN_SUBSAMPLE_OFF]";
+void export_image(VipsImage *img, const char *filepath) {
+  // printf("%s\n", filepath);
+  const char avif_options[] =
+      "[Q=66,subsample_mode=VIPS_FOREIGN_SUBSAMPLE_OFF]";
   char avif_output[512] = "";
   strcat(avif_output, filepath);
   strcat(avif_output, avif_options);
@@ -35,9 +38,10 @@ void export_image_vif(VipsImage *img) {
   // Save the resized image as AVIF with no chroma subsampling
   if (vips_image_write_to_file(img, "output.vips", NULL) != 0)
     vips_error_exit("Error saving AVIF output image");
+  g_object_unref(img);
 }
 
-void remove_file_extension(const char *filepath, char *new_filepath) {
+void remove_extension(const char *filepath, char *new_filepath) {
   int size = strlen(filepath);
   int i;
   for (i = size - 1; i > 0; i--) {
@@ -49,69 +53,56 @@ void remove_file_extension(const char *filepath, char *new_filepath) {
     strcpy(new_filepath, filepath);
   else
     strncpy(new_filepath, filepath, i);
+  new_filepath[i] = '\0';
 }
 
-void add_file_extension(const char *extension, const char *filepath,
-                        char *result) {
+void add_extension(const char *extension, const char *filepath, char *result) {
   strcpy(result, filepath);
   strcat(result, extension);
 }
 
-void replace_file_extension(const char *new_extension, const char *filepath,
-                            char *result) {
+void replace_extension(const char *new_extension, const char *filepath,
+                       char *result) {
   char filepath_no_extension[512];
-  remove_file_extension(filepath, filepath_no_extension);
-  add_file_extension(new_extension, filepath_no_extension, result);
+  remove_extension(filepath, filepath_no_extension);
+  add_extension(new_extension, filepath_no_extension, result);
 }
+
+const int linearRGB = VIPS_INTERPRETATION_RGB16;
 
 int main(int argc, char *argv[]) {
   if (VIPS_INIT(NULL) != 0)
     vips_error_exit("Error initializing VIPS");
-  char *input_image_path;
-  char image_4K_path[512];
-  char image_1K_path[512];
-  char image_thumb_path[512];
   VipsImage *input_image;
-  VipsImage *image_4K;
-  VipsImage *image_1K;
-  VipsImage *image_thumb;
+  VipsImage *resized_image;
 
+  const int sizes[3][2] = {{3840, 2160}, {1920, 1080}, {480, 270}};
+  const char *extensions[3] = {"-lg.avif", "-md.avif", "-sm.avif"};
+
+#pragma omp parallel for
   for (int i = 1; i < argc; i++) {
-    input_image_path = argv[i];
-    replace_file_extension("-4K.avif", input_image_path, image_4K_path);
-    replace_file_extension("-1K.avif", input_image_path, image_1K_path);
-    replace_file_extension("-thumb.avif", input_image_path, image_thumb_path);
-
-    printf("Writting %s %s %s\n", image_4K_path, image_1K_path,
-           image_thumb_path);
+    const char *input_image_path = argv[i];
     printf("Processing image %s\n", input_image_path);
-
-    fflush(stdout);
-
     input_image = vips_image_new_from_file(input_image_path, NULL);
 
     if (input_image == NULL)
       vips_error_exit("Error loading input image");
 
-    vips_colourspace(input_image, &input_image, VIPS_INTERPRETATION_scRGB,
-                     NULL);
-    // export_image_vif(input_image);
+    vips_colourspace(input_image, &input_image, linearRGB, NULL);
 
-    image_4K = scale_image(3840, 2160, input_image);
-    image_1K = scale_image(1920, 1080, input_image);
-    image_thumb = scale_image(480, 270, input_image);
-
-    // Save the resized image as AVIF with no chroma subsampling
-    export_image(image_4K, image_4K_path);
-    export_image(image_1K, image_1K_path);
-    export_image(image_thumb, image_thumb_path);
+#pragma omp parallel for shared(input_image)
+    for (int j = 0; j < 3; j++) {
+      char resized_image_path[512] = "";
+      replace_extension(extensions[j], input_image_path, resized_image_path);
+      resized_image = scale_image(sizes[j][0], sizes[j][1], input_image);
+      printf("Writting %s\n", resized_image_path);
+      export_image(resized_image, resized_image_path);
+    }
   }
   // Clean up
   g_object_unref(input_image);
-  g_object_unref(image_4K);
-  g_object_unref(image_1K);
-  g_object_unref(image_thumb);
   vips_shutdown();
+  fflush(stdout);
 
   return 0;
 }

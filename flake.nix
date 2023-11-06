@@ -43,13 +43,13 @@
         packages.default = pkgs.clangStdenv.mkDerivation {
           name = "vips-linear-resample";
           src = filteredSrc;
-          buildInputs = [pkgs.vips pkgs.glibc pkgs.glib pkgs.pkg-config];
+          buildInputs = [pkgs.vips pkgs.glibc pkgs.glib pkgs.pkg-config pkgs.llvmPackages.openmp];
           meta = with pkgs.lib; {
             description = "C program to resize images using libvips";
             license = licenses.mit;
           };
           buildPhase = ''
-            $CC $(pkg-config vips --cflags --libs) -lpthread -lvips -O3 -o vips-linear-resample src/vips-linear-resample.c
+            $CC $(pkg-config vips --cflags --libs) -fopenmp -lpthread -lvips -O3 -o vips-linear-resample src/vips-linear-resample.c
           '';
           installPhase = ''
             mkdir -p $out/bin

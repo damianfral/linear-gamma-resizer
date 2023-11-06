@@ -1,0 +1,30 @@
+name: build
+on: push
+#
+jobs:
+  build-package:
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout
+        uses: actions/checkout@v4
+      - name: install nix
+        uses: cachix/install-nix-action@v23
+      - run: nix build
+
+  build-devshell:
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout
+        uses: actions/checkout@v4
+      - name: install nix
+        uses: cachix/install-nix-action@v23
+      - run: nix build .#devShells.x86_64-linux.default
+
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout
+        uses: actions/checkout@v4
+      - name: install nix
+        uses: cachix/install-nix-action@v23
+      - run: nix flake check

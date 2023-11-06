@@ -72,8 +72,8 @@ const int linearRGB = VIPS_INTERPRETATION_RGB16;
 int main(int argc, char *argv[]) {
   if (VIPS_INIT(NULL) != 0)
     vips_error_exit("Error initializing VIPS");
-  VipsImage *input_image;
-  VipsImage *resized_image;
+  VipsImage **input_images = malloc((argc - 1) * sizeof *input_images);
+  VipsImage **resized_images = malloc((argc - 1) * sizeof *resized_images);
 
   const int sizes[3][2] = {{3840, 2160}, {1920, 1080}, {480, 270}};
   const char *extensions[3] = {"-lg.avif", "-md.avif", "-sm.avif"};
@@ -81,6 +81,8 @@ int main(int argc, char *argv[]) {
 #pragma omp parallel for
   for (int i = 1; i < argc; i++) {
     const char *input_image_path = argv[i];
+    VipsImage *input_image = input_images[i - 1];
+    VipsImage *resized_image = resized_images[i - 1];
     fprintf(stderr, "Loading image %s\n", input_image_path);
     input_image = vips_image_new_from_file(input_image_path, NULL);
 
@@ -89,7 +91,7 @@ int main(int argc, char *argv[]) {
 
     vips_colourspace(input_image, &input_image, linearRGB, NULL);
 
-#pragma omp parallel for shared(input_image)
+#pragma omp parallel for
     for (int j = 0; j < 3; j++) {
       char resized_image_path[512] = "";
       replace_extension(extensions[j], input_image_path, resized_image_path);
@@ -97,11 +99,13 @@ int main(int argc, char *argv[]) {
       printf("%s\n", resized_image_path);
       export_image(resized_image, resized_image_path);
     }
+    g_object_unref(input_image);
   }
   // Clean up
-  g_object_unref(input_image);
   vips_shutdown();
   fflush(stdout);
+  free(input_images);
+  free(resized_images);
 
   return 0;
 }

@@ -23,7 +23,7 @@ VipsImage *scale_image(int width, int height, VipsImage *img) {
 void export_image(VipsImage *img, const char *filepath) {
   // printf("%s\n", filepath);
   const char avif_options[] =
-      "[Q=66,subsample_mode=VIPS_FOREIGN_SUBSAMPLE_OFF]";
+      "[Q=66,subsample_mode=VIPS_FOREIGN_SUBSAMPLE_OFF,effort=0]";
   char avif_output[512] = "";
   strcat(avif_output, filepath);
   strcat(avif_output, avif_options);

@@ -9,7 +9,11 @@ jobs:
         uses: actions/checkout@v4
       - name: install nix
         uses: cachix/install-nix-action@v23
-      - run: nix build
+      - uses: cachix/cachix-action@v12
+        with:
+          name: opensource
+          authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
+      - run: nix build --accept-flake-config
 
   build-devshell:
     runs-on: ubuntu-latest
@@ -18,7 +22,11 @@ jobs:
         uses: actions/checkout@v4
       - name: install nix
         uses: cachix/install-nix-action@v23
-      - run: nix build .#devShells.x86_64-linux.default
+      - uses: cachix/cachix-action@v12
+        with:
+          name: opensource
+          authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
+      - run: nix build .#devShells.x86_64-linux.default --accept-flake-config
 
   check:
     runs-on: ubuntu-latest
@@ -27,4 +35,8 @@ jobs:
         uses: actions/checkout@v4
       - name: install nix
         uses: cachix/install-nix-action@v23
-      - run: nix flake check
+      - uses: cachix/cachix-action@v12
+        with:
+          name: opensource
+          authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
+      - run: nix flake check --accept-flake-config

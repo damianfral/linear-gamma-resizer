@@ -21,7 +21,6 @@ VipsImage *scale_image(int width, int height, VipsImage *img) {
 }
 
 void export_image(VipsImage *img, const char *filepath) {
-  // printf("%s\n", filepath);
   const char avif_options[] =
       "[Q=66,subsample_mode=VIPS_FOREIGN_SUBSAMPLE_OFF,effort=0]";
   char avif_output[512] = "";
@@ -82,7 +81,7 @@ int main(int argc, char *argv[]) {
 #pragma omp parallel for
   for (int i = 1; i < argc; i++) {
     const char *input_image_path = argv[i];
-    printf("Processing image %s\n", input_image_path);
+    fprintf(stderr, "Loading image %s\n", input_image_path);
     input_image = vips_image_new_from_file(input_image_path, NULL);
 
     if (input_image == NULL)
@@ -95,7 +94,7 @@ int main(int argc, char *argv[]) {
       char resized_image_path[512] = "";
       replace_extension(extensions[j], input_image_path, resized_image_path);
       resized_image = scale_image(sizes[j][0], sizes[j][1], input_image);
-      printf("Writting %s\n", resized_image_path);
+      printf("%s\n", resized_image_path);
       export_image(resized_image, resized_image_path);
     }
   }

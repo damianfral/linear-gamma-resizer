@@ -43,7 +43,7 @@
         packages.default = pkgs.clangStdenv.mkDerivation {
           name = "linear-gamma-resizer";
           src = filteredSrc;
-          buildInputs = [pkgs.vips pkgs.glibc pkgs.glib pkgs.pkg-config pkgs.llvmPackages.openmp];
+          buildInputs = [pkgs.vips pkgs.glib pkgs.pkg-config pkgs.llvmPackages.openmp];
           meta = with pkgs.lib; {
             description = "C program to resize images using libvips";
             license = licenses.mit;

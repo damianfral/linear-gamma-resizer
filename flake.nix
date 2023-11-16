@@ -9,21 +9,44 @@
   };
 
   outputs = {
+    self,
     nixpkgs,
     flake-utils,
     nix-filter,
     pre-commit-hooks,
     ...
   }: let
-    pkgsFor = system: import nixpkgs {inherit system;};
+    pkgsFor = system:
+      import nixpkgs {
+        inherit system;
+        overlays = [self.overlays.default];
+      };
     filteredSrc = nix-filter.lib {
       root = ./.;
-      include = [
-        "src/"
-      ];
+      include = ["src/"];
     };
   in
-    flake-utils.lib.eachDefaultSystem (
+    {
+      overlays.default = final: prev: {
+        linear-gamma-resizer = final.clangStdenv.mkDerivation {
+          name = "linear-gamma-resizer";
+          src = filteredSrc;
+          buildInputs = [final.vips final.glib final.pkg-config final.llvmPackages.openmp];
+          meta = with final.lib; {
+            description = "C program to resize images using libvips";
+            license = licenses.mit;
+          };
+          buildPhase = ''
+            $CC $(pkg-config vips --cflags --libs) -fopenmp -lpthread -lvips -O3 -o linear-gamma-resizer src/linear-gamma-resizer.c
+          '';
+          installPhase = ''
+            mkdir -p $out/bin
+            cp linear-gamma-resizer $out/bin
+          '';
+        };
+      };
+    }
+    // flake-utils.lib.eachDefaultSystem (
       system: let
         pkgs = pkgsFor system;
         precommitCheck = pre-commit-hooks.lib.${system}.run {
@@ -40,22 +63,7 @@
           };
         };
       in {
-        packages.default = pkgs.clangStdenv.mkDerivation {
-          name = "linear-gamma-resizer";
-          src = filteredSrc;
-          buildInputs = [pkgs.vips pkgs.glib pkgs.pkg-config pkgs.llvmPackages.openmp];
-          meta = with pkgs.lib; {
-            description = "C program to resize images using libvips";
-            license = licenses.mit;
-          };
-          buildPhase = ''
-            $CC $(pkg-config vips --cflags --libs) -fopenmp -lpthread -lvips -O3 -o linear-gamma-resizer src/linear-gamma-resizer.c
-          '';
-          installPhase = ''
-            mkdir -p $out/bin
-            cp linear-gamma-resizer $out/bin
-          '';
-        };
+        packages.default = pkgs.linear-gamma-resizer;
         devShells.default = (pkgs.mkShell.override {stdenv = pkgs.clangStdenv;}) {
           packages = with pkgs; [vips glib pkg-config clang-tools];
           shellHook = precommitCheck.shellHook;

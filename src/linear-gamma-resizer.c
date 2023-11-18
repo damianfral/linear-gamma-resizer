@@ -75,13 +75,15 @@ int main(int argc, char *argv[]) {
   VipsImage **input_images = malloc((argc - 1) * sizeof *input_images);
   VipsImage **resized_images = malloc((argc - 1) * sizeof *resized_images);
 
-  const int sizes[3][2] = {{3840, 2160}, {1920, 1080}, {480, 270}};
-  const char *extensions[3] = {"-lg.avif", "-md.avif", "-sm.avif"};
+  // 3rd position means smartcrop activation
+  const int sizes[3][3] = {{3840, 2160, 0}, {1920, 1080, 0}, {512, 512, 1}};
+  const char *extensions[3] = {"-hq.avif", "-lq.avif", "-thumb.avif"};
 
 #pragma omp parallel for
   for (int i = 1; i < argc; i++) {
     const char *input_image_path = argv[i];
     const VipsImage *input_image = input_images[i - 1];
+    const VipsImage *input_image_square;
     const VipsImage *resized_image = resized_images[i - 1];
     fprintf(stderr, "Loading image %s\n", input_image_path);
     input_image = vips_image_new_from_file(input_image_path, NULL);
@@ -91,15 +93,30 @@ int main(int argc, char *argv[]) {
 
     vips_colourspace(input_image, &input_image, linearRGB, NULL);
 
+    int input_image_height = vips_image_get_height(input_image);
+    int input_image_width = vips_image_get_width(input_image);
+    int square_side = input_image_height;
+    if (square_side > input_image_width)
+      square_side = input_image_width;
+    vips_smartcrop(input_image, &input_image_square, square_side, square_side,
+                   "interesting", VIPS_INTERESTING_ENTROPY, NULL);
+
 #pragma omp parallel for
     for (int j = 0; j < 3; j++) {
       char resized_image_path[512] = "";
+      VipsImage *input_image_ref = input_image;
+
+      if (sizes[j][2]) {
+        input_image_ref = input_image_square;
+      }
+
       replace_extension(extensions[j], input_image_path, resized_image_path);
-      resized_image = scale_image(sizes[j][0], sizes[j][1], input_image);
+      resized_image = scale_image(sizes[j][0], sizes[j][1], input_image_ref);
       printf("%s\n", resized_image_path);
       export_image(resized_image, resized_image_path);
     }
     g_object_unref(input_image);
+    g_object_unref(input_image_square);
   }
   // Clean up
   vips_shutdown();
